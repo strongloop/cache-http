@@ -68,7 +68,6 @@ function Server() {
 			"G.html": { content: "<html><head><title>File G.html " + 
 								"</title><body>This is G.html.</body></html>",
 						modified: date.baseline.toString(),
-						delay: 300,
 						type: "image/jpeg" },
 		},
 
@@ -85,7 +84,7 @@ function Server() {
 				type: "text/html"
 			};
 		BSequence++;
-		optionalCallback && _.defer(function() {optionalCallback(null, true);});
+		optionalCallback && optionalCallback();
 	}, this);
 	this.resetB();
 
@@ -111,14 +110,6 @@ function Server() {
 		}
 	};
 
-/*	this.ready(function() {
-		console.log(files);
-		console.log(new Date(Date.parse(files["A.html"].modified)).toString());
-		console.log(new Date(files["A.html"].modified).toString());
-		console.log("***");
-	});
-*/
-
 	async.parallel(
 
 			[ 	function(cb) {
@@ -137,9 +128,13 @@ function Server() {
 
 					var server = http.createServer(function(request, response) {
 
-						var path = url.parse(request.url).path.substring(1),
+						var url = require('url').parse(request.url),
+							path = url.pathname.substring(1),
 							cancelResponse = false, // set to true to cancel the 200 response.
-							file = files[path];
+							file = files[path],
+							delay = /delay=(\d+)/.exec(url.query);
+
+						delay = (delay && delay[1]) ? delay[1] : 0;
 
 						if(file) {
 
@@ -165,7 +160,7 @@ function Server() {
 
 							if(!cancelResponse) {
 								response.setHeader("Content-Type", file.type);
-								response.write(file.content)
+								response.write(file.content);
 							}
 
 						} else {
@@ -174,7 +169,7 @@ function Server() {
 
 						setTimeout(function() {
 							response.end();
-						}, ((file && file.delay) || 0));
+						}, ((delay) || 0));
 
 					});
 					server.listen(hostOptions.port);
@@ -438,16 +433,8 @@ describe('test-bench', function() {
 			fileE;
 
 		it('should ... [TODO]', function(done) {
-			http.request(
-				httpEOpts, 
-				function(res) {
-					// TODO
-
-					//assert.equal(res.headers["last-modified"], undefined);
-					done();
-
-				}
-			).end();
+			// TODO
+			done();
 		});
 
 	});
@@ -523,10 +510,34 @@ describe('test-bench', function() {
 
 describe('cache', function() {
 
+	/**
+	 *	Checks if a file comes from a cached copy
+	 *	@param transport - the cachedTransport to confirm
+	 *	@param opts - the http options, including the cacheable option, if applicable
+	 *	@param isCached {Boolean|Object} if false, we're confirming it's not cached, if true or an object.
+	 *		we're confirming it is cached. Also, if it's an object, we're confirming all the properties in 
+	 *		the object match those of the response.
+	 */
 	var	assertCached = function(transport, opts, isCached, callback) {
 			cachedHttp.request(opts, function(res) {
-				assert.equal(!!(res.headers['x-cached']), isCached);
-				callback();
+				var data = '';
+				res.on('data', function(chunk) {
+					data += chunk;
+				});
+				res.on('end', function() {
+					assert.equal(!!(res.headers['x-cached']), !!isCached);
+					if(typeof(isCached) === 'object') {
+						// compare each property in the isCached object with the downloaded one.
+						_.each(_.keys(isCached), function(key) {
+							if('data' === key) {
+								assert.equal(data, isCached.data);
+							} else {
+								assert.equal(res[key], isCached[key]);
+							}
+						});
+					}
+					callback();
+				});
 			}).end();
 		},
 
@@ -622,17 +633,17 @@ describe('cache', function() {
 
 
 		it('returns a cached copy when requesting the same file', function(done) {
-				assertCached(cachedHttp, httpBOpts, true, done);
+				assertCached(cachedHttp, httpBOpts, {statusCode:304}, done);
 			});
 
 		it('returns a new copy of the file after updating it', function(done) {
 				server.updateB(function(){
-					assertCached(cachedHttp, httpBOpts, false, done);
-				});
+						assertCached(cachedHttp, httpBOpts, false, done);
+					});
 			});
 
 		it('returns a cached copy of the file', function(done) {
-				assertCached(cachedHttp, httpBOpts, true, done);
+				assertCached(cachedHttp, httpBOpts, {statusCode:304}, done);
 			});
 
 		it('returns a cached copy of the file without the cache', function(done) {
@@ -721,16 +732,199 @@ describe('cache', function() {
 
 	});
 
+	// Request the file in D, should not cache a new file.
+
+	describe('Large-web-page', function() {
+
+		var httpOpts = _.assign({}, 
+					hostOptions, 
+					{	host: 'shakespeare.mit.edu',
+						port: 80,
+						path: '/romeo_juliet/full.html', 
+						cacheable: true
+					}),
+			fileLarge,
+			originalLastModified;
+
+		it('should cache the (~300ms)', function(done) {
+				cachedHttp.request(
+					httpOpts, 
+					function(res) {
+
+						var result = { data: '' };
+						originalLastModified = result.lastModified;
+						res.on('data', function(chunk) {
+							result.data += chunk;
+						});
+						res.on('end', function() {
+							fileLarge = result;
+							done();
+						});
+
+					}
+				).end();
+			});
+
+		it('returns a cached copy of the file (~100ms)', function(done) {
+				assertCached(cachedHttp, httpOpts, {data:fileLarge.data}, done);
+			});
+
+	});
 
 	// Request the binary file in E, should cache the file
 	// Request the binary file in E again, shoud give a cached copy.
 	// Save that cached copy to disk and compare it to the original.
 
 	// Should not cache a POST
+	// Request the file in D, should not cache a new file.
+	describe('Do-not-cache-POST', function() {
+
+		server.resetB();
+
+		var httpAOpts = _.assign({}, hostOptions, {method: 'POST', path: '/A.html', cacheable: true}),
+			fileA,
+			originalLastModified;
+
+		it('should not cache the file', function(done) {
+				cachedHttp.request(
+					httpAOpts, 
+					function(res) {
+
+						var result = { lastModified: res.headers["last-modified"], data: '' };
+						originalLastModified = result.lastModified;
+						res.on('data', function(chunk) {
+							result.data += chunk;
+						});
+						res.on('end', function() {
+							fileA = result;
+							done();
+						});
+					}
+				).end();
+			});
+
+		it('returns a new copy of the file', function(done) {
+				assertCached(cachedHttp, httpAOpts, false, done);
+			});
+
+		it('returns a new copy of the file', function(done) {
+				assertCached(cachedHttp, httpAOpts, false, done);
+			});
+
+	});
 
 	// Should not cache or crash on 404 or 500
+	describe('F-do-not-cachd-404', function() {
+
+		var httpFOpts = _.assign({}, hostOptions, {path: '/F.html', cacheable:true});
+
+		it('should return a 404', function(done) {
+			http.request(
+				httpFOpts, 
+				function(res) {
+					assert.equal(res.statusCode, 404);
+					done();
+
+				}
+			).end();
+		});
+		it('should not cache this request', function(done) {
+				assertCached(cachedHttp, httpFOpts, false, done);
+			});
+
+	});
+
+	describe('F-do-not-cache-500', function() {
+
+		var httpFOpts = _.assign({}, hostOptions, {path: '/F', cacheable:true});
+
+		it('should return a 500', function(done) {
+			http.request(
+				httpFOpts, 
+				function(res) {
+					assert.equal(res.statusCode, 500);
+					done();
+
+				}
+			).end();
+		});
+
+		it('returns a new copy of the file', function(done) {
+				assertCached(cachedHttp, httpFOpts, false, done);
+			});
+
+	});
 
 	// test that http.get uses cachedHttp.request
+	describe('Use-http.get', function() {
+
+		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html', cacheable: true}),
+			fileA;
+
+		it('should cache the file when using cachedHttp.get()', function(done) {
+				cachedHttp.get(
+					httpAOpts, 
+					function(res) {
+
+						var result = { lastModified: res.headers["last-modified"], data: '' };
+						originalLastModified = result.lastModified;
+						res.on('data', function(chunk) {
+							result.data += chunk;
+						});
+						res.on('end', function() {
+							fileA = result;
+							done();
+						});
+
+					}
+				);
+			});
+
+		it('returns a cached copy when requesting the same file', function(done) {
+				assertCached(cachedHttp, httpAOpts, {statusCode:304}, done);
+			});
+
+	});
+
+
+	describe('A-file-with-slower response times', function() {
+
+		var httpBOpts = _.assign({}, hostOptions, {path: '/B.html', cacheable: true}),
+			fileB,
+			originalLastModified;
+
+		for(var i = 100; i <= 1500; i += 200) {
+
+			(function(i){
+				it('should cache the file ('+i+'ms)', function(done) {
+					server.resetB(function() {
+							cachedHttp.request(
+								_.assign({}, httpBOpts, {path:'/B.html?delay='+i}),
+								function(res) {
+
+									var result = { lastModified: res.headers["last-modified"], data: '' };
+									originalLastModified = result.lastModified;
+									res.on('data', function(chunk) {
+										result.data += chunk;
+									});
+									res.on('end', function() {
+										fileB = result;
+										done();
+									});
+								}
+							).end();
+						});
+					});
+
+
+				it('returns a cached copy when requesting the same file', function(done) {
+						assertCached(cachedHttp, httpBOpts, {statusCode:304}, done);
+					});
+
+			})(i);
+		};
+
+	});
 
 });
 

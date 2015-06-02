@@ -37,7 +37,7 @@ function CachedTransport(transportProtocol, options) {
 
 	cachedTransport.request = function(options, cb) {
 
-		if(options.cacheable && _.includes(["GET", "HEAD"], options.method)) {
+		if(options.cacheable && _.includes(["GET", "HEAD"], options.method.toUpperCase())) {
 
 			var cachedRequest = transport.request(options),
 
