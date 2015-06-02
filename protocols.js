@@ -37,7 +37,7 @@ function CachedTransport(transportProtocol, options) {
 
 	cachedTransport.request = function(options, cb) {
 
-		if(options.cacheable && _.includes(["GET", "HEAD"], options.method.toUpperCase())) {
+		if(options["x-cacheable"] && _.includes(["GET"], options.method.toUpperCase())) {
 
 			var cachedRequest = transport.request(options),
 
@@ -89,6 +89,7 @@ function CachedTransport(transportProtocol, options) {
 
 			// check the cache
 			options.headers && options.headers.authorization && (cacheKey+=options.headers.authorization);
+			cacheKey += ':'+options.host;
 			cacheKey += ':'+options.method;
 			cacheKey += ':'+options.port;
 			cacheKey += ':'+options.path;
@@ -179,10 +180,6 @@ function CachedTransport(transportProtocol, options) {
 	}
 
 	return cachedTransport;
-
-}
-
-function checkCache(parms, isCached, isNotCached) {
 
 }
 

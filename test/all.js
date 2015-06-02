@@ -550,12 +550,12 @@ describe('cache', function() {
 
 	describe('A-static-text-file', function() {
 
-		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html', cacheable: true}),
+		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html', "x-cacheable": true}),
 			fileA;
 
 		it('should return a file (no-cache)', function(done) {
 				cachedHttp.request(
-					_.omit(httpAOpts, ["cacheable"]), 
+					_.omit(httpAOpts, ["x-cacheable"]), 
 					function(res) {
 						var result = { lastModified: res.headers["last-modified"], data: '' };
 						res.on('data', function(chunk) {
@@ -607,7 +607,7 @@ describe('cache', function() {
 
 		server.resetB();
 
-		var httpBOpts = _.assign({}, hostOptions, {path: '/B.html', cacheable: true}),
+		var httpBOpts = _.assign({}, hostOptions, {path: '/B.html', "x-cacheable": true}),
 			fileB,
 			originalLastModified;
 
@@ -647,7 +647,7 @@ describe('cache', function() {
 			});
 
 		it('returns a cached copy of the file without the cache', function(done) {
-				assertCached(cachedHttp, _.omit(httpBOpts, ['cacheable']), false, done);
+				assertCached(cachedHttp, _.omit(httpBOpts, ['x-cacheable']), false, done);
 			});
 
 
@@ -661,7 +661,7 @@ describe('cache', function() {
 
 		server.resetB();
 
-		var httpCOpts = _.assign({}, hostOptions, {path: '/C', cacheable: true}),
+		var httpCOpts = _.assign({}, hostOptions, {path: '/C', "x-cacheable": true}),
 			fileC,
 			originalLastModified;
 
@@ -700,7 +700,7 @@ describe('cache', function() {
 
 		server.resetB();
 
-		var httpDOpts = _.assign({}, hostOptions, {path: '/D.html', cacheable: true}),
+		var httpDOpts = _.assign({}, hostOptions, {path: '/D.html', "x-cacheable": true}),
 			fileD,
 			originalLastModified;
 
@@ -741,7 +741,7 @@ describe('cache', function() {
 					{	host: 'shakespeare.mit.edu',
 						port: 80,
 						path: '/romeo_juliet/full.html', 
-						cacheable: true
+						"x-cacheable": true
 					}),
 			fileLarge,
 			originalLastModified;
@@ -781,7 +781,43 @@ describe('cache', function() {
 
 		server.resetB();
 
-		var httpAOpts = _.assign({}, hostOptions, {method: 'POST', path: '/A.html', cacheable: true}),
+		var httpAOpts = _.assign({}, hostOptions, {method: 'POST', path: '/A.html', "x-cacheable": true}),
+			fileA,
+			originalLastModified;
+
+		it('should not cache the file', function(done) {
+				cachedHttp.request(
+					httpAOpts, 
+					function(res) {
+
+						var result = { lastModified: res.headers["last-modified"], data: '' };
+						originalLastModified = result.lastModified;
+						res.on('data', function(chunk) {
+							result.data += chunk;
+						});
+						res.on('end', function() {
+							fileA = result;
+							done();
+						});
+					}
+				).end();
+			});
+
+		it('returns a new copy of the file', function(done) {
+				assertCached(cachedHttp, httpAOpts, false, done);
+			});
+
+		it('returns a new copy of the file', function(done) {
+				assertCached(cachedHttp, httpAOpts, false, done);
+			});
+
+	});
+
+	describe('Do-not-cache-unless-asked', function() {
+
+		server.resetB();
+
+		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html'}),
 			fileA,
 			originalLastModified;
 
@@ -816,7 +852,7 @@ describe('cache', function() {
 	// Should not cache or crash on 404 or 500
 	describe('F-do-not-cachd-404', function() {
 
-		var httpFOpts = _.assign({}, hostOptions, {path: '/F.html', cacheable:true});
+		var httpFOpts = _.assign({}, hostOptions, {path: '/F.html', "x-cacheable":true});
 
 		it('should return a 404', function(done) {
 			http.request(
@@ -836,7 +872,7 @@ describe('cache', function() {
 
 	describe('F-do-not-cache-500', function() {
 
-		var httpFOpts = _.assign({}, hostOptions, {path: '/F', cacheable:true});
+		var httpFOpts = _.assign({}, hostOptions, {path: '/F', "x-cacheable":true});
 
 		it('should return a 500', function(done) {
 			http.request(
@@ -858,7 +894,7 @@ describe('cache', function() {
 	// test that http.get uses cachedHttp.request
 	describe('Use-http.get', function() {
 
-		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html', cacheable: true}),
+		var httpAOpts = _.assign({}, hostOptions, {path: '/A.html', "x-cacheable": true}),
 			fileA;
 
 		it('should cache the file when using cachedHttp.get()', function(done) {
@@ -889,11 +925,11 @@ describe('cache', function() {
 
 	describe('A-file-with-slower response times', function() {
 
-		var httpBOpts = _.assign({}, hostOptions, {path: '/B.html', cacheable: true}),
+		var httpBOpts = _.assign({}, hostOptions, {path: '/B.html', "x-cacheable": true}),
 			fileB,
 			originalLastModified;
 
-		for(var i = 100; i <= 1500; i += 200) {
+		for(var i = 100; i <= 1600; i += 500) {
 
 			(function(i){
 				it('should cache the file ('+i+'ms)', function(done) {
@@ -909,6 +945,7 @@ describe('cache', function() {
 									});
 									res.on('end', function() {
 										fileB = result;
+										assert(!res.headers["x-cached"]);
 										done();
 									});
 								}
