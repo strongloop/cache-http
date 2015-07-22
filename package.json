@@ -24,7 +24,7 @@
   },
   "main": "./protocols.js",
   "scripts": {
-    "test": "node ./test/all.js"
+    "test": "mocha"
   },
   "bugs": {
     "url": "https://github.com/strongloop/cache-http/issues"
