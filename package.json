@@ -1,18 +1,15 @@
 {
   "name": "cache-http",
   "version": "0.1.0",
-  "description": "NodeJS wrapper for the GitHub API",
+  "description": "Caching wrapper for node's http module",
   "author": "Thomas Wilkinson <thomas@capnajax.com>",
   "contributors": [
-    {
-      "name": "Thomas Wilkinson",
-      "email": "thomas@capnajax.com"
-    }
+    "Thomas Wilkinson <thomas@capnajax.com>"
   ],
-  "homepage": "http://github.com/capnajax/cache-http",
+  "homepage": "http://github.com/strongloop/cache-http",
   "repository": {
     "type": "git",
-    "url": "http://github.com/capnajax/cache-http.git"
+    "url": "https://github.com/strongloop/cache-http.git"
   },
   "engine": {
     "node": ">=0.4.0"
@@ -28,5 +25,12 @@
   "main": "./protocols.js",
   "scripts": {
     "test": "node ./test/all.js"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/strongloop/cache-http/issues"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "license": "MIT"
 }
