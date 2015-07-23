@@ -24,7 +24,7 @@
   },
   "main": "./protocols.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --timeout=10000"
   },
   "bugs": {
     "url": "https://github.com/strongloop/cache-http/issues"
