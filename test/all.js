@@ -1,3 +1,7 @@
+// Copyright IBM Corp. 2015. All Rights Reserved.
+// Node module: cache-http
+// This file is licensed under the MIT License.
+// License text available at https://opensource.org/licenses/MIT
 
 /**
 	Test script for the cached http client.
