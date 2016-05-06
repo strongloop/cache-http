@@ -1,6 +1,6 @@
 {
   "name": "cache-http",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Caching wrapper for node's http module",
   "author": "Thomas Wilkinson <thomas@capnajax.com>",
   "contributors": [
